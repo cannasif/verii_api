@@ -23,6 +23,7 @@ using V3RII.Infrastructure.Options;
 using V3RII.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+var hangfireEnabled = bool.TryParse(builder.Configuration["Jobs:EnableHangfire"], out var configuredHangfire) && configuredHangfire;
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>();
@@ -65,19 +66,22 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
-    {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-        QueuePollInterval = TimeSpan.FromSeconds(15),
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true
-    }));
-builder.Services.AddHangfireServer();
+if (hangfireEnabled)
+{
+    builder.Services.AddHangfire(configuration => configuration
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection"), new SqlServerStorageOptions
+        {
+            CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+            QueuePollInterval = TimeSpan.FromSeconds(15),
+            UseRecommendedIsolationLevel = true,
+            DisableGlobalLocks = true
+        }));
+    builder.Services.AddHangfireServer();
+}
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -184,7 +188,14 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-if (networkSecurity.EnableHangfireDashboard)
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "verii-api",
+    time = DateTimeOffset.UtcNow
+}));
+
+if (hangfireEnabled && networkSecurity.EnableHangfireDashboard)
 {
     app.UseWhen(
         context => context.Request.Path.StartsWithSegments("/hangfire"),
@@ -210,7 +221,10 @@ if (networkSecurity.EnableHangfireDashboard)
 }
 
 app.MapControllers();
-RecurringJob.AddOrUpdate<IMailOutboxProcessor>("mail-outbox", processor => processor.ProcessPendingAsync(CancellationToken.None), Cron.Minutely);
+if (hangfireEnabled)
+{
+    RecurringJob.AddOrUpdate<IMailOutboxProcessor>("mail-outbox", processor => processor.ProcessPendingAsync(CancellationToken.None), Cron.Minutely);
+}
 
 var autoMigrate = bool.TryParse(builder.Configuration["Database:AutoMigrate"], out var configuredAutoMigrate) && configuredAutoMigrate;
 if (autoMigrate)

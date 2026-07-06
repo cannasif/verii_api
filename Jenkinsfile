@@ -3,6 +3,7 @@ pipeline {
 
   parameters {
     string(name: 'PUBLISH_PATH', defaultValue: 'C:\\inetpub\\wwwroot\\verii-api', description: 'IIS publish hedef klasörü')
+    string(name: 'APP_POOL_NAME', defaultValue: 'verii-api', description: 'IIS AppPool adı')
     booleanParam(name: 'APPLY_MIGRATIONS', defaultValue: false, description: 'Publish öncesi EF migration uygula')
   }
 
@@ -34,10 +35,58 @@ pipeline {
       }
     }
 
+    stage('Ensure AppPool Stopped') {
+      steps {
+        powershell '''
+          Import-Module WebAdministration
+          if (Test-Path "IIS:\\AppPools\\$env:APP_POOL_NAME") {
+            $state = (Get-WebAppPoolState -Name $env:APP_POOL_NAME).Value
+            if ($state -ne "Stopped") {
+              Stop-WebAppPool -Name $env:APP_POOL_NAME
+            }
+          }
+        '''
+      }
+    }
+
     stage('Publish') {
       steps {
-        bat 'if exist "%PUBLISH_PATH%" rmdir /S /Q "%PUBLISH_PATH%"'
-        bat 'dotnet publish verii-api.csproj --configuration Release --no-build --output "%PUBLISH_PATH%"'
+        powershell '''
+          $tempPath = Join-Path $env:WORKSPACE "publish-output"
+          if (Test-Path $tempPath) {
+            Remove-Item -Recurse -Force $tempPath
+          }
+          New-Item -ItemType Directory -Force -Path $tempPath | Out-Null
+          dotnet publish verii-api.csproj --configuration Release --no-build --output $tempPath
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          if (!(Test-Path $env:PUBLISH_PATH)) {
+            New-Item -ItemType Directory -Force -Path $env:PUBLISH_PATH | Out-Null
+          }
+          if (!(Test-Path (Join-Path $env:PUBLISH_PATH "logs"))) {
+            New-Item -ItemType Directory -Force -Path (Join-Path $env:PUBLISH_PATH "logs") | Out-Null
+          }
+
+          robocopy $tempPath $env:PUBLISH_PATH /MIR /XD logs /NFL /NDL /NJH /NJS /NP
+          if ($LASTEXITCODE -le 7) {
+            exit 0
+          }
+
+          exit $LASTEXITCODE
+        '''
+      }
+    }
+
+    stage('Start AppPool') {
+      steps {
+        powershell '''
+          Import-Module WebAdministration
+          if (Test-Path "IIS:\\AppPools\\$env:APP_POOL_NAME") {
+            Start-WebAppPool -Name $env:APP_POOL_NAME
+          }
+        '''
       }
     }
 
@@ -45,6 +94,17 @@ pipeline {
       steps {
         archiveArtifacts artifacts: '**/verii-api.dll', fingerprint: true, allowEmptyArchive: true
       }
+    }
+  }
+
+  post {
+    failure {
+      powershell '''
+        Import-Module WebAdministration
+        if (Test-Path "IIS:\\AppPools\\$env:APP_POOL_NAME") {
+          Start-WebAppPool -Name $env:APP_POOL_NAME
+        }
+      '''
     }
   }
 }
