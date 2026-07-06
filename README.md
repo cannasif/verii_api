@@ -32,7 +32,7 @@ Data
 Migrations
 ```
 
-CRM projesindeki gibi root'ta tek `verii_api.csproj` ve tek `verii_api.sln` vardır.
+CRM projesindeki gibi root'ta tek `verii-api.csproj` ve tek `verii_api.sln` vardır.
 
 ## İçerik
 
@@ -62,8 +62,8 @@ Development ayarları:
 ```bash
 dotnet restore verii_api.sln
 dotnet build verii_api.sln
-dotnet ef database update --project verii_api.csproj --startup-project verii_api.csproj
-dotnet run --project verii_api.csproj
+dotnet ef database update --project verii-api.csproj --startup-project verii-api.csproj
+dotnet run --project verii-api.csproj
 ```
 
 ## Production Network Ayarı
@@ -98,7 +98,7 @@ Oluşturulan migrationlar:
 Uygulama komutu:
 
 ```bash
-dotnet ef database update --project verii_api.csproj --startup-project verii_api.csproj
+dotnet ef database update --project verii-api.csproj --startup-project verii-api.csproj
 ```
 
 Jenkinsfile içinde `APPLY_MIGRATIONS=true` verilirse publish öncesi aynı komut çalışır.

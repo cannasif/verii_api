@@ -1,45 +1,49 @@
 pipeline {
   agent any
 
+  parameters {
+    string(name: 'PUBLISH_PATH', defaultValue: 'C:\\inetpub\\wwwroot\\verii-api', description: 'IIS publish hedef klasörü')
+    booleanParam(name: 'APPLY_MIGRATIONS', defaultValue: false, description: 'Publish öncesi EF migration uygula')
+  }
+
   environment {
     DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     DOTNET_NOLOGO = '1'
     ASPNETCORE_ENVIRONMENT = 'Production'
-    PUBLISH_DIR = 'publish/api'
   }
 
   stages {
     stage('Restore') {
       steps {
-        sh 'dotnet restore verii_api.sln'
+        bat 'dotnet restore verii_api.sln'
       }
     }
 
     stage('Build') {
       steps {
-        sh 'dotnet build verii_api.sln --configuration Release --no-restore'
+        bat 'dotnet build verii_api.sln --configuration Release --no-restore'
       }
     }
 
     stage('Database Migration') {
       when {
-        expression { return env.APPLY_MIGRATIONS == 'true' }
+        expression { return params.APPLY_MIGRATIONS }
       }
       steps {
-        sh 'dotnet ef database update --project verii_api.csproj --startup-project verii_api.csproj --configuration Release'
+        bat 'dotnet ef database update --project verii-api.csproj --startup-project verii-api.csproj --configuration Release'
       }
     }
 
     stage('Publish') {
       steps {
-        sh 'rm -rf "$PUBLISH_DIR"'
-        sh 'dotnet publish verii_api.csproj --configuration Release --no-build --output "$PUBLISH_DIR"'
+        bat 'if exist "%PUBLISH_PATH%" rmdir /S /Q "%PUBLISH_PATH%"'
+        bat 'dotnet publish verii-api.csproj --configuration Release --no-build --output "%PUBLISH_PATH%"'
       }
     }
 
     stage('Archive') {
       steps {
-        archiveArtifacts artifacts: 'publish/api/**', fingerprint: true
+        archiveArtifacts artifacts: '**/verii-api.dll', fingerprint: true, allowEmptyArchive: true
       }
     }
   }

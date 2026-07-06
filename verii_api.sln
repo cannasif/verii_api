@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "verii_api", "verii_api.csproj", "{79B2B542-1ECE-4D20-B974-27F62C3A0CB8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "verii-api", "verii-api.csproj", "{79B2B542-1ECE-4D20-B974-27F62C3A0CB8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
