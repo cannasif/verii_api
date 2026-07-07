@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -81,12 +82,16 @@ public sealed class VoiceTranscriptionService(
                     WorkingDirectory = hostEnvironment.ContentRootPath,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 }
             };
             process.StartInfo.Environment["HF_HOME"] = modelCachePath;
             process.StartInfo.Environment["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1";
+            process.StartInfo.Environment["PYTHONIOENCODING"] = "utf-8";
+            process.StartInfo.Environment["PYTHONUTF8"] = "1";
 
             process.Start();
             var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
