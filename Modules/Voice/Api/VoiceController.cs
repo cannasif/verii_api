@@ -17,4 +17,12 @@ public sealed class VoiceController(IVoiceSynthesisService voiceSynthesisService
         var result = await voiceSynthesisService.SynthesizeAsync(request, cancellationToken);
         return Ok(ApiResponse<VoiceSynthesisResultDto>.Ok(result));
     }
+
+    [HttpPost("session")]
+    [EnableRateLimiting("public-chatbot")]
+    public async Task<ActionResult<ApiResponse<VoiceRealtimeSessionResultDto>>> CreateSession(VoiceRealtimeSessionRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await voiceSynthesisService.CreateRealtimeSessionAsync(request, cancellationToken);
+        return Ok(ApiResponse<VoiceRealtimeSessionResultDto>.Ok(result));
+    }
 }
