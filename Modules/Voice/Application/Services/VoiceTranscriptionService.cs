@@ -160,6 +160,8 @@ public sealed class VoiceTranscriptionService(
             {
                 return $"Whisper model hatası: {compactError}";
             }
+
+            return $"Ses motoru hata verdi: {compactError}";
         }
 
         if (exitCode == 12 || error.Contains("faster-whisper is not installed", StringComparison.OrdinalIgnoreCase))
@@ -172,7 +174,7 @@ public sealed class VoiceTranscriptionService(
             return "Ses motoru bağımlılıkları eksik. API sunucusunda faster-whisper kurulumu gerekli.";
         }
 
-        return "Ses çözümlenemedi. Lütfen tekrar deneyin.";
+        return $"Ses motoru hata verdi. ExitCode={exitCode}";
     }
 
     private static string ResolveExtension(string contentType) =>
