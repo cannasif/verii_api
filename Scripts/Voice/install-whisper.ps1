@@ -1,17 +1,29 @@
 param(
-    [string]$Python = "python",
+    [string]$Python = "",
     [string]$Model = "small"
 )
 
 $ErrorActionPreference = "Stop"
+
+$pythonCommand = $Python
+if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
+    $pythonCommand = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+}
+if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
+    $pythonCommand = (Get-Command py -ErrorAction SilentlyContinue)?.Source
+}
+if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
+    throw "Python bulunamadı. Önce Python 3.12+ kurun veya -Python parametresine python.exe yolunu verin. Örnek: -Python `"C:\Program Files\Python312\python.exe`""
+}
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir "../..")
 $venvPath = Join-Path $repoRoot ".venv"
 $pythonExe = Join-Path $venvPath "Scripts/python.exe"
 
+Write-Host "Using Python command: $pythonCommand"
 Write-Host "Creating Python virtual environment at $venvPath"
-& $Python -m venv $venvPath
+& $pythonCommand -m venv $venvPath
 
 Write-Host "Installing faster-whisper dependencies"
 & $pythonExe -m pip install --upgrade pip
