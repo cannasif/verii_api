@@ -10,5 +10,6 @@ DataProtectionKeys/
 uploads/
 output/
 .venv/
+.whisper-cache/
 
 .git.backup.*

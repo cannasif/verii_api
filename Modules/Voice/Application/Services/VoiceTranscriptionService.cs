@@ -71,6 +71,7 @@ public sealed class VoiceTranscriptionService(
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, _voiceOptions.TranscriptionTimeoutSeconds)));
 
             var arguments = BuildArguments(inputPath, language);
+            var modelCachePath = Path.Combine(hostEnvironment.ContentRootPath, ".whisper-cache");
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
@@ -84,6 +85,8 @@ public sealed class VoiceTranscriptionService(
                     CreateNoWindow = true
                 }
             };
+            process.StartInfo.Environment["HF_HOME"] = modelCachePath;
+            process.StartInfo.Environment["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1";
 
             process.Start();
             var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
@@ -131,6 +134,34 @@ public sealed class VoiceTranscriptionService(
 
     private static string ResolveProcessErrorMessage(int exitCode, string error)
     {
+        if (!string.IsNullOrWhiteSpace(error))
+        {
+            var compactError = error.Replace(Environment.NewLine, " ").Trim();
+            if (compactError.Length > 260)
+            {
+                compactError = compactError[..260] + "...";
+            }
+
+            if (compactError.Contains("Access is denied", StringComparison.OrdinalIgnoreCase) ||
+                compactError.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"Ses motoru dosya iznine takıldı: {compactError}";
+            }
+
+            if (compactError.Contains("Unable to open file", StringComparison.OrdinalIgnoreCase) ||
+                compactError.Contains("No such file", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"Ses dosyası okunamadı: {compactError}";
+            }
+
+            if (compactError.Contains("model", StringComparison.OrdinalIgnoreCase) ||
+                compactError.Contains("huggingface", StringComparison.OrdinalIgnoreCase) ||
+                compactError.Contains("download", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"Whisper model hatası: {compactError}";
+            }
+        }
+
         if (exitCode == 12 || error.Contains("faster-whisper is not installed", StringComparison.OrdinalIgnoreCase))
         {
             return "Ses motoru kurulu değil. API sunucusunda Scripts/Voice/install-whisper.ps1 çalıştırılmalı.";
