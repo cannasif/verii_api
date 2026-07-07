@@ -9,5 +9,6 @@ appsettings.Production.json
 DataProtectionKeys/
 uploads/
 output/
+.venv/
 
 .git.backup.*

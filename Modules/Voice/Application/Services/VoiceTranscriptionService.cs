@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using V3RII.Application.DTOs;
@@ -10,6 +11,7 @@ namespace V3RII.Infrastructure.Services;
 
 public sealed class VoiceTranscriptionService(
     IOptions<VoiceOptions> voiceOptions,
+    IHostEnvironment hostEnvironment,
     ILogger<VoiceTranscriptionService> logger) : IVoiceTranscriptionService
 {
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -75,6 +77,7 @@ public sealed class VoiceTranscriptionService(
                 {
                     FileName = _voiceOptions.TranscriptionExecutablePath,
                     Arguments = arguments,
+                    WorkingDirectory = hostEnvironment.ContentRootPath,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -93,7 +96,7 @@ public sealed class VoiceTranscriptionService(
             if (process.ExitCode != 0)
             {
                 logger.LogWarning("Voice transcription process failed with exit code {ExitCode}. {Error}", process.ExitCode, error);
-                return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses çözümlenemedi.");
+                return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, ResolveProcessErrorMessage(process.ExitCode, error));
             }
 
             if (string.IsNullOrWhiteSpace(output))
@@ -110,7 +113,7 @@ public sealed class VoiceTranscriptionService(
         catch (Exception exception)
         {
             logger.LogError(exception, "Voice transcription failed.");
-            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses çözümleme sırasında hata oluştu.");
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses motoru çalıştırılamadı. Sunucuda Python/faster-whisper kurulumunu kontrol edin.");
         }
         finally
         {
@@ -124,6 +127,21 @@ public sealed class VoiceTranscriptionService(
         return _voiceOptions.TranscriptionArgumentsTemplate
             .Replace("{input}", inputPath, StringComparison.OrdinalIgnoreCase)
             .Replace("{language}", normalizedLanguage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveProcessErrorMessage(int exitCode, string error)
+    {
+        if (exitCode == 12 || error.Contains("faster-whisper is not installed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Ses motoru kurulu değil. API sunucusunda Scripts/Voice/install-whisper.ps1 çalıştırılmalı.";
+        }
+
+        if (error.Contains("No module named", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Ses motoru bağımlılıkları eksik. API sunucusunda faster-whisper kurulumu gerekli.";
+        }
+
+        return "Ses çözümlenemedi. Lütfen tekrar deneyin.";
     }
 
     private static string ResolveExtension(string contentType) =>
