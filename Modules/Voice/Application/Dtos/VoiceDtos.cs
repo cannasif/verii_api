@@ -8,13 +8,3 @@ public sealed record VoiceSynthesisResultDto(
     string ContentType,
     string Provider,
     string VoiceName);
-
-public sealed record VoiceRealtimeSessionRequestDto(string? Language, string? Persona, string? SessionId);
-
-public sealed record VoiceRealtimeSessionResultDto(
-    bool Enabled,
-    string? ClientSecret,
-    string Model,
-    string Voice,
-    string Endpoint,
-    DateTimeOffset? ExpiresAt);

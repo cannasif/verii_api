@@ -99,19 +99,6 @@ Voice__TurkishFemaleVoice="tr-TR-EmelNeural"
 Voice__TurkishMaleVoice="tr-TR-AhmetNeural"
 ```
 
-Mobilde tek tıklama ile canlı sesli görüşme için OpenAI Realtime WebRTC konfigürasyonu:
-
-```bash
-Voice__RealtimeEnabled="true"
-Voice__OpenAiApiKey="openai-api-key"
-Voice__RealtimeModel="gpt-realtime-mini"
-Voice__RealtimeFemaleVoice="marin"
-Voice__RealtimeMaleVoice="cedar"
-Voice__RealtimeClientSecretTtlSeconds="300"
-```
-
-`POST /api/voice/session` normal API key'i frontend'e vermez; sadece kısa ömürlü client secret üretir.
-
 ## Migration
 
 Oluşturulan migrationlar:
@@ -140,7 +127,6 @@ Jenkinsfile içinde `APPLY_MIGRATIONS=true` verilirse publish öncesi aynı komu
 - `PATCH /api/support/tickets/{id}/status`
 - `POST /api/chat/answer`
 - `POST /api/voice/synthesize`
-- `POST /api/voice/session`
 - `POST /api/analytics/events`
 - `GET /api/analytics/summary`
 - `GET /api/users`

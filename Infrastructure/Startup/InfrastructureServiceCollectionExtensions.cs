@@ -43,15 +43,6 @@ public static class InfrastructureServiceCollectionExtensions
             options.TurkishMaleVoice = section[nameof(VoiceOptions.TurkishMaleVoice)] ?? options.TurkishMaleVoice;
             options.EnglishFemaleVoice = section[nameof(VoiceOptions.EnglishFemaleVoice)] ?? options.EnglishFemaleVoice;
             options.EnglishMaleVoice = section[nameof(VoiceOptions.EnglishMaleVoice)] ?? options.EnglishMaleVoice;
-            options.RealtimeEnabled = bool.TryParse(section[nameof(VoiceOptions.RealtimeEnabled)], out var realtimeEnabled) && realtimeEnabled;
-            options.OpenAiApiKey = section[nameof(VoiceOptions.OpenAiApiKey)] ?? options.OpenAiApiKey;
-            options.RealtimeModel = section[nameof(VoiceOptions.RealtimeModel)] ?? options.RealtimeModel;
-            options.RealtimeFemaleVoice = section[nameof(VoiceOptions.RealtimeFemaleVoice)] ?? options.RealtimeFemaleVoice;
-            options.RealtimeMaleVoice = section[nameof(VoiceOptions.RealtimeMaleVoice)] ?? options.RealtimeMaleVoice;
-            if (int.TryParse(section[nameof(VoiceOptions.RealtimeClientSecretTtlSeconds)], out var realtimeTtlSeconds))
-            {
-                options.RealtimeClientSecretTtlSeconds = realtimeTtlSeconds;
-            }
         });
         services.Configure<MailOptions>(options =>
         {

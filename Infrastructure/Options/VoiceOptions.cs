@@ -14,10 +14,4 @@ public sealed class VoiceOptions
     public string TurkishMaleVoice { get; set; } = "tr-TR-AhmetNeural";
     public string EnglishFemaleVoice { get; set; } = "en-US-JennyNeural";
     public string EnglishMaleVoice { get; set; } = "en-US-GuyNeural";
-    public bool RealtimeEnabled { get; set; }
-    public string OpenAiApiKey { get; set; } = string.Empty;
-    public string RealtimeModel { get; set; } = "gpt-realtime-mini";
-    public string RealtimeFemaleVoice { get; set; } = "marin";
-    public string RealtimeMaleVoice { get; set; } = "cedar";
-    public int RealtimeClientSecretTtlSeconds { get; set; } = 300;
 }
