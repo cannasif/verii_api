@@ -43,6 +43,7 @@ CRM projesindeki gibi root'ta tek `verii-api.csproj` ve tek `verii_api.sln` vard
 - Canlı destek/handoff kuyruğu alanları
 - Yönetilebilir bilgi tabanı endpointleri
 - Bilgi tabanı tabanlı RAG cevap endpointi
+- Azure Speech destekli gerçek erkek/kadın ses sentezi endpointi
 - Chatbot analitik eventleri ve özet raporu
 - SMTP destekli mail outbox kuyruğu ve retry
 - FluentValidation ile backend validasyon
@@ -87,6 +88,17 @@ NetworkSecurity__EnableHangfireDashboard="false"
 NetworkSecurity__AdminIpAllowList__0="JENKINS_OR_OFFICE_IP"
 ```
 
+Gerçek chatbot sesleri için Azure Speech konfigürasyonu:
+
+```bash
+Voice__Enabled="true"
+Voice__Provider="AzureSpeech"
+Voice__AzureSpeechKey="azure-speech-key"
+Voice__AzureSpeechRegion="westeurope"
+Voice__TurkishFemaleVoice="tr-TR-EmelNeural"
+Voice__TurkishMaleVoice="tr-TR-AhmetNeural"
+```
+
 ## Migration
 
 Oluşturulan migrationlar:
@@ -114,6 +126,7 @@ Jenkinsfile içinde `APPLY_MIGRATIONS=true` verilirse publish öncesi aynı komu
 - `GET /api/support/tickets/dashboard`
 - `PATCH /api/support/tickets/{id}/status`
 - `POST /api/chat/answer`
+- `POST /api/voice/synthesize`
 - `POST /api/analytics/events`
 - `GET /api/analytics/summary`
 - `GET /api/users`

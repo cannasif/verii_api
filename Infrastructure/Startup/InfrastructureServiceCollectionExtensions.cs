@@ -30,6 +30,20 @@ public static class InfrastructureServiceCollectionExtensions
             options.ApiKey = section[nameof(LlmOptions.ApiKey)] ?? options.ApiKey;
             options.Model = section[nameof(LlmOptions.Model)] ?? options.Model;
         });
+        services.Configure<VoiceOptions>(options =>
+        {
+            var section = configuration.GetSection(VoiceOptions.SectionName);
+            options.Enabled = bool.TryParse(section[nameof(VoiceOptions.Enabled)], out var enabled) && enabled;
+            options.Provider = section[nameof(VoiceOptions.Provider)] ?? options.Provider;
+            options.AzureSpeechKey = section[nameof(VoiceOptions.AzureSpeechKey)] ?? options.AzureSpeechKey;
+            options.AzureSpeechRegion = section[nameof(VoiceOptions.AzureSpeechRegion)] ?? options.AzureSpeechRegion;
+            options.OutputFormat = section[nameof(VoiceOptions.OutputFormat)] ?? options.OutputFormat;
+            options.ContentType = section[nameof(VoiceOptions.ContentType)] ?? options.ContentType;
+            options.TurkishFemaleVoice = section[nameof(VoiceOptions.TurkishFemaleVoice)] ?? options.TurkishFemaleVoice;
+            options.TurkishMaleVoice = section[nameof(VoiceOptions.TurkishMaleVoice)] ?? options.TurkishMaleVoice;
+            options.EnglishFemaleVoice = section[nameof(VoiceOptions.EnglishFemaleVoice)] ?? options.EnglishFemaleVoice;
+            options.EnglishMaleVoice = section[nameof(VoiceOptions.EnglishMaleVoice)] ?? options.EnglishMaleVoice;
+        });
         services.Configure<MailOptions>(options =>
         {
             var section = configuration.GetSection(MailOptions.SectionName);
@@ -61,6 +75,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IKnowledgeService, KnowledgeService>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<IChatAnswerService, ChatAnswerService>();
+        services.AddScoped<IVoiceSynthesisService, VoiceSynthesisService>();
         services.AddScoped<IMailOutboxProcessor, MailOutboxProcessor>();
 
         return services;
