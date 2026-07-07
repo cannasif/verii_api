@@ -8,3 +8,10 @@ public sealed record VoiceSynthesisResultDto(
     string ContentType,
     string Provider,
     string VoiceName);
+
+public sealed record VoiceTranscriptionResultDto(
+    bool Enabled,
+    bool Success,
+    string? Text,
+    string Provider,
+    string? Message);

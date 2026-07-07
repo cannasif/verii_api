@@ -14,4 +14,10 @@ public sealed class VoiceOptions
     public string TurkishMaleVoice { get; set; } = "tr-TR-AhmetNeural";
     public string EnglishFemaleVoice { get; set; } = "en-US-JennyNeural";
     public string EnglishMaleVoice { get; set; } = "en-US-GuyNeural";
+    public bool TranscriptionEnabled { get; set; }
+    public string TranscriptionProvider { get; set; } = "LocalProcess";
+    public string TranscriptionExecutablePath { get; set; } = string.Empty;
+    public string TranscriptionArgumentsTemplate { get; set; } = "--language {language} --file \"{input}\"";
+    public int TranscriptionTimeoutSeconds { get; set; } = 45;
+    public int TranscriptionMaxFileBytes { get; set; } = 8 * 1024 * 1024;
 }

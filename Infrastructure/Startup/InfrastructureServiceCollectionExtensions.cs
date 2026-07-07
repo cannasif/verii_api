@@ -43,6 +43,18 @@ public static class InfrastructureServiceCollectionExtensions
             options.TurkishMaleVoice = section[nameof(VoiceOptions.TurkishMaleVoice)] ?? options.TurkishMaleVoice;
             options.EnglishFemaleVoice = section[nameof(VoiceOptions.EnglishFemaleVoice)] ?? options.EnglishFemaleVoice;
             options.EnglishMaleVoice = section[nameof(VoiceOptions.EnglishMaleVoice)] ?? options.EnglishMaleVoice;
+            options.TranscriptionEnabled = bool.TryParse(section[nameof(VoiceOptions.TranscriptionEnabled)], out var transcriptionEnabled) && transcriptionEnabled;
+            options.TranscriptionProvider = section[nameof(VoiceOptions.TranscriptionProvider)] ?? options.TranscriptionProvider;
+            options.TranscriptionExecutablePath = section[nameof(VoiceOptions.TranscriptionExecutablePath)] ?? options.TranscriptionExecutablePath;
+            options.TranscriptionArgumentsTemplate = section[nameof(VoiceOptions.TranscriptionArgumentsTemplate)] ?? options.TranscriptionArgumentsTemplate;
+            if (int.TryParse(section[nameof(VoiceOptions.TranscriptionTimeoutSeconds)], out var transcriptionTimeoutSeconds))
+            {
+                options.TranscriptionTimeoutSeconds = transcriptionTimeoutSeconds;
+            }
+            if (int.TryParse(section[nameof(VoiceOptions.TranscriptionMaxFileBytes)], out var transcriptionMaxFileBytes))
+            {
+                options.TranscriptionMaxFileBytes = transcriptionMaxFileBytes;
+            }
         });
         services.Configure<MailOptions>(options =>
         {
@@ -76,6 +88,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<IChatAnswerService, ChatAnswerService>();
         services.AddScoped<IVoiceSynthesisService, VoiceSynthesisService>();
+        services.AddScoped<IVoiceTranscriptionService, VoiceTranscriptionService>();
         services.AddScoped<IMailOutboxProcessor, MailOutboxProcessor>();
 
         return services;

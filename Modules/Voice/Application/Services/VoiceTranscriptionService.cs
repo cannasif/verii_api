@@ -1,0 +1,155 @@
+using System.Diagnostics;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using V3RII.Application.DTOs;
+using V3RII.Application.Interfaces;
+using V3RII.Infrastructure.Options;
+
+namespace V3RII.Infrastructure.Services;
+
+public sealed class VoiceTranscriptionService(
+    IOptions<VoiceOptions> voiceOptions,
+    ILogger<VoiceTranscriptionService> logger) : IVoiceTranscriptionService
+{
+    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "audio/aac",
+        "audio/mp4",
+        "audio/mpeg",
+        "audio/ogg",
+        "audio/wav",
+        "audio/webm",
+        "video/mp4",
+        "video/webm"
+    };
+
+    private readonly VoiceOptions _voiceOptions = voiceOptions.Value;
+
+    public async Task<VoiceTranscriptionResultDto> TranscribeAsync(IFormFile audio, string? language, CancellationToken cancellationToken = default)
+    {
+        if (!_voiceOptions.TranscriptionEnabled ||
+            !_voiceOptions.TranscriptionProvider.Equals("LocalProcess", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(_voiceOptions.TranscriptionExecutablePath))
+        {
+            return new VoiceTranscriptionResultDto(
+                false,
+                false,
+                null,
+                _voiceOptions.TranscriptionProvider,
+                "Ses alındı fakat ücretsiz local transkripsiyon servisi API tarafında aktif değil.");
+        }
+
+        if (audio.Length <= 0)
+        {
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses kaydı boş geldi.");
+        }
+
+        if (audio.Length > _voiceOptions.TranscriptionMaxFileBytes)
+        {
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses kaydı çok uzun veya büyük.");
+        }
+
+        if (!AllowedContentTypes.Contains(audio.ContentType))
+        {
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses formatı desteklenmiyor.");
+        }
+
+        var extension = ResolveExtension(audio.ContentType);
+        var inputPath = Path.Combine(Path.GetTempPath(), $"v3rii-voice-{Guid.NewGuid():N}{extension}");
+
+        try
+        {
+            await using (var stream = File.Create(inputPath))
+            {
+                await audio.CopyToAsync(stream, cancellationToken);
+            }
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, _voiceOptions.TranscriptionTimeoutSeconds)));
+
+            var arguments = BuildArguments(inputPath, language);
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = _voiceOptions.TranscriptionExecutablePath,
+                    Arguments = arguments,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+
+            var output = (await outputTask).Trim();
+            var error = (await errorTask).Trim();
+
+            if (process.ExitCode != 0)
+            {
+                logger.LogWarning("Voice transcription process failed with exit code {ExitCode}. {Error}", process.ExitCode, error);
+                return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses çözümlenemedi.");
+            }
+
+            if (string.IsNullOrWhiteSpace(output))
+            {
+                return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Konuşma algılanamadı.");
+            }
+
+            return new VoiceTranscriptionResultDto(true, true, output, _voiceOptions.TranscriptionProvider, null);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses çözümleme zaman aşımına uğradı.");
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Voice transcription failed.");
+            return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses çözümleme sırasında hata oluştu.");
+        }
+        finally
+        {
+            TryDelete(inputPath);
+        }
+    }
+
+    private string BuildArguments(string inputPath, string? language)
+    {
+        var normalizedLanguage = language?.StartsWith("en", StringComparison.OrdinalIgnoreCase) == true ? "en" : "tr";
+        return _voiceOptions.TranscriptionArgumentsTemplate
+            .Replace("{input}", inputPath, StringComparison.OrdinalIgnoreCase)
+            .Replace("{language}", normalizedLanguage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveExtension(string contentType) =>
+        contentType.ToLowerInvariant() switch
+        {
+            "audio/mp4" or "video/mp4" => ".mp4",
+            "audio/mpeg" => ".mp3",
+            "audio/ogg" => ".ogg",
+            "audio/wav" => ".wav",
+            "audio/webm" or "video/webm" => ".webm",
+            "audio/aac" => ".aac",
+            _ => ".audio"
+        };
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+            // Temp cleanup failure should not affect the response.
+        }
+    }
+}

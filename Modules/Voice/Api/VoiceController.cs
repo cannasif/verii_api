@@ -8,7 +8,9 @@ namespace V3RII.Api.Controllers;
 
 [ApiController]
 [Route("api/voice")]
-public sealed class VoiceController(IVoiceSynthesisService voiceSynthesisService) : ControllerBase
+public sealed class VoiceController(
+    IVoiceSynthesisService voiceSynthesisService,
+    IVoiceTranscriptionService voiceTranscriptionService) : ControllerBase
 {
     [HttpPost("synthesize")]
     [EnableRateLimiting("public-chatbot")]
@@ -16,5 +18,17 @@ public sealed class VoiceController(IVoiceSynthesisService voiceSynthesisService
     {
         var result = await voiceSynthesisService.SynthesizeAsync(request, cancellationToken);
         return Ok(ApiResponse<VoiceSynthesisResultDto>.Ok(result));
+    }
+
+    [HttpPost("transcribe")]
+    [EnableRateLimiting("public-chatbot")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<ApiResponse<VoiceTranscriptionResultDto>>> Transcribe(
+        IFormFile audio,
+        [FromForm] string? language,
+        CancellationToken cancellationToken)
+    {
+        var result = await voiceTranscriptionService.TranscribeAsync(audio, language, cancellationToken);
+        return Ok(ApiResponse<VoiceTranscriptionResultDto>.Ok(result));
     }
 }
