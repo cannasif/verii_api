@@ -7,10 +7,16 @@ $ErrorActionPreference = "Stop"
 
 $pythonCommand = $Python
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
-    $pythonCommand = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+    $pythonCandidate = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCandidate) {
+        $pythonCommand = $pythonCandidate.Source
+    }
 }
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
-    $pythonCommand = (Get-Command py -ErrorAction SilentlyContinue)?.Source
+    $pythonCandidate = Get-Command py -ErrorAction SilentlyContinue
+    if ($pythonCandidate) {
+        $pythonCommand = $pythonCandidate.Source
+    }
 }
 if ([string]::IsNullOrWhiteSpace($pythonCommand)) {
     throw "Python bulunamadı. Önce Python 3.12+ kurun veya -Python parametresine python.exe yolunu verin. Örnek: -Python `"C:\Program Files\Python312\python.exe`""
