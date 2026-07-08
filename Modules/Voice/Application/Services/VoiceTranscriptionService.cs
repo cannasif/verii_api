@@ -31,6 +31,13 @@ public sealed class VoiceTranscriptionService(
 
     public async Task<VoiceTranscriptionResultDto> TranscribeAsync(IFormFile audio, string? language, CancellationToken cancellationToken = default)
     {
+        logger.LogInformation(
+            "Voice transcription request received. FileName={FileName} ContentType={ContentType} Length={Length} Language={Language}",
+            audio.FileName,
+            audio.ContentType,
+            audio.Length,
+            language);
+
         if (!_voiceOptions.TranscriptionEnabled ||
             !_voiceOptions.TranscriptionProvider.Equals("LocalProcess", StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(_voiceOptions.TranscriptionExecutablePath))
@@ -109,9 +116,11 @@ public sealed class VoiceTranscriptionService(
 
             if (string.IsNullOrWhiteSpace(output))
             {
+                logger.LogInformation("Voice transcription completed without detected speech. ContentType={ContentType} Length={Length}", audio.ContentType, audio.Length);
                 return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Konuşma algılanamadı.");
             }
 
+            logger.LogInformation("Voice transcription succeeded. OutputLength={OutputLength} ContentType={ContentType} Length={Length}", output.Length, audio.ContentType, audio.Length);
             return new VoiceTranscriptionResultDto(true, true, output, _voiceOptions.TranscriptionProvider, null);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
