@@ -12,7 +12,8 @@ public sealed record CreateSupportTicketRequestDto(
     string? TranscriptJson,
     bool RequiresHandoff = false,
     string? HandoffReason = null,
-    string Source = "website-chatbot");
+    string Source = "website-chatbot",
+    string? LeadSignalsJson = null);
 
 public sealed record UpdateSupportTicketStatusRequestDto(SupportTicketStatus Status, string? AssignedToEmail);
 
@@ -30,6 +31,9 @@ public sealed record SupportTicketDto(
     bool RequiresHandoff,
     string? HandoffReason,
     string Source,
+    int LeadScore,
+    string LeadSegment,
+    string? LeadSignalsJson,
     string? AssignedToEmail,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ResolvedAt);
@@ -37,6 +41,7 @@ public sealed record SupportTicketDto(
 public sealed record SupportDashboardDto(
     int OpenTicketCount,
     int UrgentTicketCount,
+    int HotLeadCount,
     int HandoffQueueCount,
     int WaitingCustomerCount,
     int ResolvedLast7Days,

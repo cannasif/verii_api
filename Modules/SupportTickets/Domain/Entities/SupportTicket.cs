@@ -19,6 +19,9 @@ public sealed class SupportTicket : AuditableEntity
     public bool RequiresHandoff { get; set; }
     public string? HandoffReason { get; set; }
     public string Source { get; set; } = "website-chatbot";
+    public int LeadScore { get; set; }
+    public string LeadSegment { get; set; } = "cold";
+    public string? LeadSignalsJson { get; set; }
     public DateTimeOffset? LastNotificationAt { get; set; }
     public DateTimeOffset? ResolvedAt { get; set; }
 }

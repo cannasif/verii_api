@@ -16,6 +16,7 @@ public sealed class CreateSupportTicketRequestDtoValidator : AbstractValidator<C
         RuleFor(x => x.TranscriptJson).MaximumLength(12000);
         RuleFor(x => x.HandoffReason).MaximumLength(500);
         RuleFor(x => x.Source).NotEmpty().MaximumLength(80);
+        RuleFor(x => x.LeadSignalsJson).MaximumLength(4000);
     }
 }
 

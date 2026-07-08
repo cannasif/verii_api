@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using V3RII.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using V3RII.Infrastructure.Persistence;
 namespace V3RII.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(V3RiiDbContext))]
-    partial class V3RiiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260708215235_AddKnowledgeArticleChunks")]
+    partial class AddKnowledgeArticleChunks
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -530,18 +533,6 @@ namespace V3RII.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("LastNotificationAt")
                         .HasColumnType("datetimeoffset");
-
-                    b.Property<int>("LeadScore")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LeadSegment")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("LeadSignalsJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<int>("Priority")
                         .HasColumnType("int");

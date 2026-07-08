@@ -17,55 +17,79 @@ public sealed class ChatAnswerService(V3RiiDbContext dbContext, IHttpClientFacto
 
     public async Task<ChatAnswerDto> AnswerAsync(ChatAnswerRequestDto request, CancellationToken cancellationToken = default)
     {
-        var sources = await RetrieveSourcesAsync(request, cancellationToken);
+        var (sources, hasDirectMatch) = await RetrieveSourcesAsync(request, cancellationToken);
         if (_llmOptions.Enabled && !string.IsNullOrWhiteSpace(_llmOptions.ApiKey) && sources.Count > 0)
         {
             var llmAnswer = await TryCreateLlmAnswerAsync(request, sources, cancellationToken);
             if (!string.IsNullOrWhiteSpace(llmAnswer))
             {
-                return new ChatAnswerDto(llmAnswer, sources.Select(Map).ToList(), true);
+                return new ChatAnswerDto(llmAnswer, sources, true, hasDirectMatch);
             }
         }
 
         var fallbackAnswer = BuildFallbackAnswer(request, sources);
-        return new ChatAnswerDto(fallbackAnswer, sources.Select(Map).ToList(), false);
+        return new ChatAnswerDto(fallbackAnswer, sources, false, hasDirectMatch);
     }
 
-    private async Task<List<KnowledgeArticle>> RetrieveSourcesAsync(ChatAnswerRequestDto request, CancellationToken cancellationToken)
+    private async Task<(List<KnowledgeArticleDto> Sources, bool HasDirectMatch)> RetrieveSourcesAsync(ChatAnswerRequestDto request, CancellationToken cancellationToken)
     {
-        var terms = request.Question
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(x => x.Length > 2)
-            .Take(8)
-            .ToArray();
-
-        var query = dbContext.KnowledgeArticles.AsNoTracking().Where(x => x.IsPublished);
+        var terms = Tokenize(request.Question).Take(10).ToArray();
+        var chunkQuery = dbContext.KnowledgeArticleChunks.AsNoTracking().Where(x => x.IsPublished);
         if (request.Product is not null)
         {
-            query = query.Where(x => x.Product == request.Product.Value);
+            chunkQuery = chunkQuery.Where(x => x.Product == request.Product.Value);
         }
 
-        foreach (var term in terms)
+        var chunkCandidates = await chunkQuery
+            .OrderBy(x => x.Product)
+            .ThenBy(x => x.KnowledgeArticleId)
+            .ThenBy(x => x.ChunkIndex)
+            .Take(250)
+            .ToListAsync(cancellationToken);
+
+        var rankedChunks = chunkCandidates
+            .Select(chunk => new { Chunk = chunk, Score = ScoreChunk(chunk, terms) })
+            .Where(x => x.Score > 0)
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Chunk.TokenEstimate)
+            .Take(5)
+            .Select(x => MapChunkAsSource(x.Chunk))
+            .ToList();
+
+        if (rankedChunks.Count > 0)
         {
-            query = query.Where(x => x.Title.Contains(term) || x.Summary.Contains(term) || x.ContentMarkdown.Contains(term) || x.Tags.Contains(term));
+            return (rankedChunks, true);
         }
 
-        var strictResults = await query.Take(5).ToListAsync(cancellationToken);
-        if (strictResults.Count > 0)
-        {
-            return strictResults;
-        }
-
-        query = dbContext.KnowledgeArticles.AsNoTracking().Where(x => x.IsPublished);
+        var articleQuery = dbContext.KnowledgeArticles.AsNoTracking().Where(x => x.IsPublished);
         if (request.Product is not null)
         {
-            query = query.Where(x => x.Product == request.Product.Value);
+            articleQuery = articleQuery.Where(x => x.Product == request.Product.Value);
         }
 
-        return await query.OrderBy(x => x.Product).ThenBy(x => x.Title).Take(5).ToListAsync(cancellationToken);
+        var articleCandidates = await articleQuery
+            .OrderBy(x => x.Product)
+            .ThenBy(x => x.Title)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        var rankedArticles = articleCandidates
+            .Select(article => new { Article = article, Score = ScoreArticle(article, terms) })
+            .Where(x => x.Score > 0)
+            .OrderByDescending(x => x.Score)
+            .Take(5)
+            .Select(x => Map(x.Article))
+            .ToList();
+
+        if (rankedArticles.Count > 0)
+        {
+            return (rankedArticles, true);
+        }
+
+        return (articleCandidates.Take(5).Select(Map).ToList(), false);
     }
 
-    private async Task<string?> TryCreateLlmAnswerAsync(ChatAnswerRequestDto request, IReadOnlyList<KnowledgeArticle> sources, CancellationToken cancellationToken)
+    private async Task<string?> TryCreateLlmAnswerAsync(ChatAnswerRequestDto request, IReadOnlyList<KnowledgeArticleDto> sources, CancellationToken cancellationToken)
     {
         var context = string.Join("\n\n", sources.Select(x => $"# {x.Title}\n{x.Summary}\n{x.ContentMarkdown}"));
         var prompt = $"""
@@ -98,7 +122,7 @@ public sealed class ChatAnswerService(V3RiiDbContext dbContext, IHttpClientFacto
         return payload.RootElement.TryGetProperty("output_text", out var outputText) ? outputText.GetString() : null;
     }
 
-    private static string BuildFallbackAnswer(ChatAnswerRequestDto request, IReadOnlyList<KnowledgeArticle> sources)
+    private static string BuildFallbackAnswer(ChatAnswerRequestDto request, IReadOnlyList<KnowledgeArticleDto> sources)
     {
         if (sources.Count == 0)
         {
@@ -107,8 +131,78 @@ public sealed class ChatAnswerService(V3RiiDbContext dbContext, IHttpClientFacto
                 : "Bilgi tabanında eşleşen kayıt bulamadım. Ekibin incelemesi için destek talebi oluşturabilirim.";
         }
 
-        return string.Join("\n\n", sources.Select(x => $"{x.Title}\n{x.Summary}\n{x.ContentMarkdown}"));
+        var intro = request.Language == "en"
+            ? "I found the most relevant knowledge base sections for this question:"
+            : "Bu soru için bilgi tabanındaki en ilgili bölümleri buldum:";
+
+        var summaries = sources
+            .Take(3)
+            .Select((source, index) => $"{index + 1}. {source.Title}: {TrimForAnswer(source.ContentMarkdown)}")
+            .ToArray();
+
+        var closing = request.Language == "en"
+            ? "You can review the source cards below or I can create a support ticket for the team."
+            : "Aşağıdaki kaynak kartlarından detayı inceleyebilirsiniz; isterseniz ekip için destek talebi de açabilirim.";
+
+        return string.Join("\n\n", new[] { intro }.Concat(summaries).Concat(new[] { closing }));
     }
 
     private static KnowledgeArticleDto Map(KnowledgeArticle article) => new(article.Id, article.Product, article.Title, article.Summary, article.ContentMarkdown, article.Tags, article.IsPublished);
+
+    private static string TrimForAnswer(string value)
+    {
+        var normalized = value.Replace("\r\n", "\n").Replace("\n", " ").Trim();
+        return normalized.Length <= 280 ? normalized : $"{normalized[..280].Trim()}...";
+    }
+
+    private static KnowledgeArticleDto MapChunkAsSource(KnowledgeArticleChunk chunk) => new(
+        chunk.KnowledgeArticleId,
+        chunk.Product,
+        chunk.Title,
+        $"Bilgi tabanı bölümü #{chunk.ChunkIndex + 1}",
+        chunk.Content,
+        chunk.Tags,
+        chunk.IsPublished);
+
+    private static int ScoreChunk(KnowledgeArticleChunk chunk, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return 0;
+        }
+
+        var score = 0;
+        foreach (var term in terms)
+        {
+            if (chunk.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 5;
+            if (chunk.Tags.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 4;
+            if (chunk.Content.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 2;
+        }
+
+        return score;
+    }
+
+    private static int ScoreArticle(KnowledgeArticle article, IReadOnlyList<string> terms)
+    {
+        if (terms.Count == 0)
+        {
+            return 0;
+        }
+
+        var score = 0;
+        foreach (var term in terms)
+        {
+            if (article.Title.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 5;
+            if (article.Tags.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 4;
+            if (article.Summary.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 3;
+            if (article.ContentMarkdown.Contains(term, StringComparison.OrdinalIgnoreCase)) score += 1;
+        }
+
+        return score;
+    }
+
+    private static IEnumerable<string> Tokenize(string value) =>
+        value.ToLowerInvariant()
+            .Split(new[] { ' ', '\n', '\t', '.', ',', ';', ':', '/', '\\', '-', '_', '(', ')', '[', ']', '{', '}', '"', '\'' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => x.Length > 2);
 }

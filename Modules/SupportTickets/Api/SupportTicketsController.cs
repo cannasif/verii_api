@@ -49,4 +49,12 @@ public sealed class SupportTicketsController(ISupportTicketService supportTicket
         var result = await supportTicketService.UpdateStatusAsync(id, request, cancellationToken);
         return Ok(ApiResponse<SupportTicketDto>.Ok(result, "Destek talebi güncellendi."));
     }
+
+    [HttpPost("{id:long}/status/update")]
+    [PermissionAuthorize(PermissionCodes.SupportTicketsManage)]
+    public async Task<ActionResult<ApiResponse<SupportTicketDto>>> UpdateStatusPost(long id, UpdateSupportTicketStatusRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await supportTicketService.UpdateStatusAsync(id, request, cancellationToken);
+        return Ok(ApiResponse<SupportTicketDto>.Ok(result, "Destek talebi güncellendi."));
+    }
 }

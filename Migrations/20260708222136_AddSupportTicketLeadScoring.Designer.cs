@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using V3RII.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using V3RII.Infrastructure.Persistence;
 namespace V3RII.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(V3RiiDbContext))]
-    partial class V3RiiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260708222136_AddSupportTicketLeadScoring")]
+    partial class AddSupportTicketLeadScoring
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

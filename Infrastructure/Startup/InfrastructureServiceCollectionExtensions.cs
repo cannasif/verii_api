@@ -85,7 +85,9 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ISupportTicketService, SupportTicketService>();
         services.AddScoped<IKnowledgeService, KnowledgeService>();
+        services.AddScoped<IKnowledgeDocumentTextExtractor, KnowledgeDocumentTextExtractor>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<IMailOutboxService, MailOutboxService>();
         services.AddScoped<IChatAnswerService, ChatAnswerService>();
         services.AddScoped<IVoiceSynthesisService, VoiceSynthesisService>();
         services.AddScoped<IVoiceTranscriptionService, VoiceTranscriptionService>();

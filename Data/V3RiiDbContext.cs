@@ -14,6 +14,7 @@ public sealed class V3RiiDbContext(DbContextOptions<V3RiiDbContext> options) : D
     public DbSet<PermissionGroupPermissionDefinition> PermissionGroupPermissionDefinitions => Set<PermissionGroupPermissionDefinition>();
     public DbSet<UserPermissionGroup> UserPermissionGroups => Set<UserPermissionGroup>();
     public DbSet<KnowledgeArticle> KnowledgeArticles => Set<KnowledgeArticle>();
+    public DbSet<KnowledgeArticleChunk> KnowledgeArticleChunks => Set<KnowledgeArticleChunk>();
     public DbSet<SupportTicket> SupportTickets => Set<SupportTicket>();
     public DbSet<ChatAnalyticsEvent> ChatAnalyticsEvents => Set<ChatAnalyticsEvent>();
     public DbSet<MailOutboxItem> MailOutboxItems => Set<MailOutboxItem>();
@@ -101,6 +102,8 @@ public sealed class V3RiiDbContext(DbContextOptions<V3RiiDbContext> options) : D
             entity.Property(x => x.AssignedToEmail).HasMaxLength(256);
             entity.Property(x => x.HandoffReason).HasMaxLength(500);
             entity.Property(x => x.Source).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.LeadSegment).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.LeadSignalsJson).HasMaxLength(4000);
         });
 
         modelBuilder.Entity<ChatAnalyticsEvent>(entity =>
@@ -120,6 +123,19 @@ public sealed class V3RiiDbContext(DbContextOptions<V3RiiDbContext> options) : D
             entity.Property(x => x.Subject).HasMaxLength(220).IsRequired();
             entity.Property(x => x.BodyHtml).HasMaxLength(8000).IsRequired();
             entity.Property(x => x.LastError).HasMaxLength(1200);
+        });
+
+        modelBuilder.Entity<KnowledgeArticleChunk>(entity =>
+        {
+            entity.HasIndex(x => new { x.Product, x.IsPublished });
+            entity.HasIndex(x => new { x.KnowledgeArticleId, x.ChunkIndex }).IsUnique();
+            entity.Property(x => x.Title).HasMaxLength(240).IsRequired();
+            entity.Property(x => x.Content).HasMaxLength(2400).IsRequired();
+            entity.Property(x => x.Tags).HasMaxLength(700);
+            entity.HasOne(x => x.KnowledgeArticle)
+                .WithMany()
+                .HasForeignKey(x => x.KnowledgeArticleId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         Seed(modelBuilder);
