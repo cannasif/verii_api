@@ -18,11 +18,15 @@ public sealed class VoiceTranscriptionService(
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "audio/aac",
+        "audio/m4a",
         "audio/mp4",
         "audio/mpeg",
         "audio/ogg",
         "audio/wav",
         "audio/webm",
+        "audio/x-m4a",
+        "audio/x-wav",
+        "application/octet-stream",
         "video/mp4",
         "video/webm"
     };
@@ -65,7 +69,7 @@ public sealed class VoiceTranscriptionService(
             return new VoiceTranscriptionResultDto(true, false, null, _voiceOptions.TranscriptionProvider, "Ses formatı desteklenmiyor.");
         }
 
-        var extension = ResolveExtension(audio.ContentType);
+        var extension = ResolveExtension(audio.ContentType, audio.FileName);
         var inputPath = Path.Combine(Path.GetTempPath(), $"v3rii-voice-{Guid.NewGuid():N}{extension}");
 
         try
@@ -191,17 +195,25 @@ public sealed class VoiceTranscriptionService(
         return $"Ses motoru hata verdi. ExitCode={exitCode}";
     }
 
-    private static string ResolveExtension(string contentType) =>
-        contentType.ToLowerInvariant() switch
+    private static string ResolveExtension(string contentType, string fileName)
+    {
+        var fileExtension = Path.GetExtension(fileName);
+        if (!string.IsNullOrWhiteSpace(fileExtension) && fileExtension.Length <= 6)
         {
-            "audio/mp4" or "video/mp4" => ".mp4",
+            return fileExtension;
+        }
+
+        return contentType.ToLowerInvariant() switch
+        {
+            "audio/m4a" or "audio/mp4" or "audio/x-m4a" or "video/mp4" => ".m4a",
             "audio/mpeg" => ".mp3",
             "audio/ogg" => ".ogg",
-            "audio/wav" => ".wav",
+            "audio/wav" or "audio/x-wav" => ".wav",
             "audio/webm" or "video/webm" => ".webm",
             "audio/aac" => ".aac",
             _ => ".audio"
         };
+    }
 
     private static void TryDelete(string path)
     {
